@@ -1,44 +1,98 @@
 #!/usr/bin/env python
 
+# pylint: disable=C0111
+
 import argparse
+import getpass
 import glob
+import mechanize
 import os
 import os.path
 import shutil
 
+def get_browser():
+    browser = mechanize.Browser()
+    browser.set_handle_robots(False)
+    browser.set_handle_refresh(False)
+
+    return browser
+
+def is_logged_in(res = None):
+    dashboard_url = 'https://www.codeeval.com/dashboard/'
+
+    if res == None:
+        browser = get_browser()
+        browser.open(dashboard_url)
+        res = browser
+
+    return res.geturl() == dashboard_url
+
+def login():
+    username = raw_input('Username: ')
+    password = getpass.getpass()
+
+    browser = get_browser()
+    browser.open('https://www.codeeval.com/accounts/login/')
+
+    login_form = browser.form = list(browser.forms())[-1]
+    login_form.find_control('username').value = username
+    login_form.find_control('password').value = password
+
+    return browser.submit()
+
+def login_required(func):
+    def wrapper(args):
+        if not is_logged_in():
+            res = login()
+
+            if not is_logged_in(res):
+                print 'Unable to login'
+                exit(1)
+
+        return func(args)
+
+    return wrapper
+
 def create_challenge(args):
-	challenge_name = args.challenge_name.lower().replace(' ', '_')
-	filename_root  = '{0}_{1}'.format(args.challenge_id, challenge_name)
+    challenge_name = args.challenge_name.lower().replace(' ', '_')
+    filename_root  = '{0}_{1}'.format(args.challenge_id, challenge_name)
 
-	for lang in os.listdir('.'):
-		if not os.path.isdir(lang) or lang.startswith('.'):
-			continue
+    for lang in os.listdir('.'):
+        if not os.path.isdir(lang) or lang.startswith('.'):
+            continue
 
-		template_match = glob.glob(os.path.join(lang, 'template.*'))
-		if len(template_match) == 0:
-			continue
+        template_match = glob.glob(os.path.join(lang, 'template.*'))
+        if len(template_match) == 0:
+            continue
 
-		template = template_match[0]
-		filename = os.path.join(lang, filename_root) + os.path.splitext(template)[1]
+        template = template_match[0]
+        filename = os.path.join(lang, filename_root) + os.path.splitext(template)[1]
 
-		if os.path.exists(filename):
-			print 'Skipping {0}...'.format(filename)
-		else:
-			print 'Creating {0}...'.format(filename)
+        if os.path.exists(filename):
+            print 'Skipping {0}...'.format(filename)
+        else:
+            print 'Creating {0}...'.format(filename)
 
-			shutil.copyfile(template, filename)
+            shutil.copyfile(template, filename)
+
+@login_required
+def submit_challenge(args):
+	pass
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description = 'Create solution files for each language for a challenge')
-	subparsers = parser.add_subparsers()
+    parser = argparse.ArgumentParser(description = 'Create solution files for each language for a challenge')
+    subparsers = parser.add_subparsers()
 
-	create_parser = subparsers.add_parser('create')
-	create_parser.add_argument('challenge_id', type = int,
-						help = 'Challenge ID')
-	create_parser.add_argument('challenge_name', type = str,
-						help = 'Challenge name')
-	create_parser.set_defaults(func = create_challenge)
+    create_parser = subparsers.add_parser('create')
+    create_parser.add_argument('challenge_id', type = int,
+                        help = 'Challenge ID')
+    create_parser.add_argument('challenge_name', type = str,
+                        help = 'Challenge name')
+    create_parser.set_defaults(func = create_challenge)
 
-	args = parser.parse_args()
-	args.func(args)
+    submit_parser = subparsers.add_parser('submit')
+    submit_parser.set_defaults(func = submit_challenge)
+
+    args = parser.parse_args()
+    args.func(args)
 
