@@ -8,31 +8,40 @@ import glob
 import mechanize
 import os
 import os.path
+import re
 import shutil
 
-def get_browser():
-    browser = mechanize.Browser()
-    browser.set_handle_robots(False)
-    browser.set_handle_refresh(False)
+LOGIN_URL     = 'https://www.codeeval.com/accounts/login/'
+DASHBOARD_URL = 'https://www.codeeval.com/dashboard/'
+SUBMIT_URL    = 'https://www.codeeval.com/open_challenges/{challenge_id}/submit'
 
-    return browser
+BROWSER = mechanize.Browser()
+BROWSER.set_handle_robots(False)
+BROWSER.set_handle_refresh(False)
+
+COOKIE_JAR_FILE = 'cookies.txt'
+
+COOKIE_JAR = mechanize.LWPCookieJar()
+COOKIE_JAR.load(COOKIE_JAR_FILE)
+BROWSER.set_cookiejar(COOKIE_JAR)
+
+def get_browser():
+    return BROWSER
 
 def is_logged_in(res = None):
-    dashboard_url = 'https://www.codeeval.com/dashboard/'
-
     if res == None:
         browser = get_browser()
-        browser.open(dashboard_url)
+        browser.open(DASHBOARD_URL)
         res = browser
 
-    return res.geturl() == dashboard_url
+    return res.geturl() == DASHBOARD_URL
 
 def login():
     username = raw_input('Username: ')
     password = getpass.getpass()
 
     browser = get_browser()
-    browser.open('https://www.codeeval.com/accounts/login/')
+    browser.open(LOGIN_URL)
 
     login_form = browser.form = list(browser.forms())[-1]
     login_form.find_control('username').value = username
@@ -77,7 +86,23 @@ def create_challenge(args):
 
 @login_required
 def submit_challenge(args):
-	pass
+    solution = args.file
+    contents = None
+    try:
+        file_handle = open(solution)
+        contents    = file_handle.read()
+    except:
+        print 'Unable to read solution file'
+        exit(1)
+
+    challenge_id = re.search(r'\d+', solution).group(0)[0]
+    url          = SUBMIT_URL.format(challenge_id = challenge_id)
+
+    browser = get_browser()
+    browser.open(url)
+
+    for f in browser.forms():
+        print f
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Create solution files for each language for a challenge')
@@ -91,8 +116,12 @@ if __name__ == '__main__':
     create_parser.set_defaults(func = create_challenge)
 
     submit_parser = subparsers.add_parser('submit')
+    submit_parser.add_argument('file', type = str,
+                        help = 'Solution file')
     submit_parser.set_defaults(func = submit_challenge)
 
     args = parser.parse_args()
     args.func(args)
+
+    COOKIE_JAR.save(COOKIE_JAR_FILE)
 
