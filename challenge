@@ -22,7 +22,8 @@ BROWSER.set_handle_refresh(False)
 COOKIE_JAR_FILE = 'cookies.txt'
 
 COOKIE_JAR = mechanize.LWPCookieJar()
-COOKIE_JAR.load(COOKIE_JAR_FILE)
+if os.path.exists(COOKIE_JAR_FILE):
+    COOKIE_JAR.load(COOKIE_JAR_FILE)
 BROWSER.set_cookiejar(COOKIE_JAR)
 
 def get_browser():
