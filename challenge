@@ -6,6 +6,7 @@ import argparse
 import getpass
 import glob
 import mechanize
+import mimetypes
 import os
 import os.path
 import re
@@ -25,6 +26,8 @@ COOKIE_JAR = mechanize.LWPCookieJar()
 if os.path.exists(COOKIE_JAR_FILE):
     COOKIE_JAR.load(COOKIE_JAR_FILE)
 BROWSER.set_cookiejar(COOKIE_JAR)
+
+mimetypes.add_type('text/java', '.java')
 
 def get_browser():
     return BROWSER
@@ -87,11 +90,12 @@ def create_challenge(args):
 
 @login_required
 def submit_challenge(args):
-    solution = args.file
-    contents = None
+    solution    = args.file
+    extension   = os.path.splitext(solution)[1]
+    mimetype    = mimetypes.types_map[extension]
+    file_handle = None
     try:
         file_handle = open(solution)
-        contents    = file_handle.read()
     except:
         print 'Unable to read solution file'
         exit(1)
@@ -102,8 +106,15 @@ def submit_challenge(args):
     browser = get_browser()
     browser.open(url)
 
-    for f in browser.forms():
-        print f
+    form = browser.form = list(browser.forms())[0]
+    file_control = form.find_control(name = 'submission')
+    file_control.add_file(
+        file_handle,
+        filename = solution,
+        content_type = mimetype
+    )
+
+    browser.submit()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Create solution files for each language for a challenge')
