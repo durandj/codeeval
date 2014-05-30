@@ -29,42 +29,31 @@ BROWSER.set_cookiejar(COOKIE_JAR)
 
 mimetypes.add_type('text/java', '.java')
 
-def get_browser():
+def get_browser(url):
+    BROWSER.open(url)
+
+    if BROWSER.geturl() != url:
+        res = login()
+
+        if res.geturl() != DASHBOARD_URL:
+            print 'Unable to login'
+            exit(1)
+
+        BROWSER.open(url)
+
     return BROWSER
-
-def is_logged_in(res = None):
-    if res == None:
-        browser = get_browser()
-        browser.open(DASHBOARD_URL)
-        res = browser
-
-    return res.geturl() == DASHBOARD_URL
 
 def login():
     username = raw_input('Username: ')
     password = getpass.getpass()
 
-    browser = get_browser()
-    browser.open(LOGIN_URL)
+    browser = get_browser(LOGIN_URL)
 
     login_form = browser.form = list(browser.forms())[-1]
     login_form.find_control('username').value = username
     login_form.find_control('password').value = password
 
     return browser.submit()
-
-def login_required(func):
-    def wrapper(args):
-        if not is_logged_in():
-            res = login()
-
-            if not is_logged_in(res):
-                print 'Unable to login'
-                exit(1)
-
-        return func(args)
-
-    return wrapper
 
 def create_challenge(args):
     challenge_name = args.challenge_name.lower().replace(' ', '_')
@@ -88,7 +77,6 @@ def create_challenge(args):
 
             shutil.copyfile(template, filename)
 
-@login_required
 def submit_challenge(args):
     solution    = args.file
     extension   = os.path.splitext(solution)[1]
@@ -103,8 +91,7 @@ def submit_challenge(args):
     challenge_id = re.search(r'\d+', solution).group(0)[0]
     url          = SUBMIT_URL.format(challenge_id = challenge_id)
 
-    browser = get_browser()
-    browser.open(url)
+    browser = get_browser(url)
 
     form = browser.form = list(browser.forms())[0]
     file_control = form.find_control(name = 'submission')
