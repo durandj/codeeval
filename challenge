@@ -78,30 +78,32 @@ def create_challenge(args):
             shutil.copyfile(template, filename)
 
 def submit_challenge(args):
-    solution    = args.file
-    extension   = os.path.splitext(solution)[1]
-    mimetype    = mimetypes.types_map[extension]
-    file_handle = None
-    try:
-        file_handle = open(solution)
-    except:
-        print 'Unable to read solution file'
-        exit(1)
+    for solution in args.files:
+        print 'Submitting {0}...'.format(solution)
 
-    challenge_id = re.search(r'\d+', solution).group(0)[0]
-    url          = SUBMIT_URL.format(challenge_id = challenge_id)
+        extension   = os.path.splitext(solution)[1]
+        mimetype    = mimetypes.types_map[extension]
+        file_handle = None
+        try:
+            file_handle = open(solution)
+        except:
+            print 'Unable to read solution file'
+            exit(1)
 
-    browser = get_browser(url)
+        challenge_id = re.search(r'\d+', solution).group(0)[0]
+        url          = SUBMIT_URL.format(challenge_id = challenge_id)
 
-    form = browser.form = list(browser.forms())[0]
-    file_control = form.find_control(name = 'submission')
-    file_control.add_file(
-        file_handle,
-        filename = solution,
-        content_type = mimetype
-    )
+        browser = get_browser(url)
 
-    browser.submit()
+        form = browser.form = list(browser.forms())[0]
+        file_control = form.find_control(name = 'submission')
+        file_control.add_file(
+            file_handle,
+            filename = solution,
+            content_type = mimetype
+        )
+
+        browser.submit()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Create solution files for each language for a challenge')
@@ -115,7 +117,8 @@ if __name__ == '__main__':
     create_parser.set_defaults(func = create_challenge)
 
     submit_parser = subparsers.add_parser('submit')
-    submit_parser.add_argument('file', type = str,
+    submit_parser.add_argument('files', type = str,
+                        nargs = '+',
                         help = 'Solution file')
     submit_parser.set_defaults(func = submit_challenge)
 
