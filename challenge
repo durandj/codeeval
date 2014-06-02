@@ -90,7 +90,7 @@ def submit_challenge(args):
             print 'Unable to read solution file'
             exit(1)
 
-        challenge_id = re.search(r'\d+', solution).group(0)[0]
+        challenge_id = re.search(r'\d+', solution).group(0)
         url          = SUBMIT_URL.format(challenge_id = challenge_id)
 
         browser = get_browser(url)
