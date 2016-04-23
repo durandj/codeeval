@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-# pylint: disable=C0111
+# pylint: disable=missing-docstring
+
+from __future__ import print_function
 
 import argparse
 import getpass
@@ -36,7 +38,7 @@ def get_browser(url):
         res = login()
 
         if res.geturl() != DASHBOARD_URL:
-            print 'Unable to login'
+            print('Unable to login')
             exit(1)
 
         BROWSER.open(url)
@@ -44,7 +46,9 @@ def get_browser(url):
     return BROWSER
 
 def login():
-    username = raw_input('Username: ')
+    # pylint: disable=bad-builtin
+    username = input('Username: ')
+    # pylint: enable=bad-builtin
     password = getpass.getpass()
 
     browser = get_browser(LOGIN_URL)
@@ -71,59 +75,73 @@ def create_challenge(args):
         filename = os.path.join(lang, filename_root) + os.path.splitext(template)[1]
 
         if os.path.exists(filename):
-            print 'Skipping {0}...'.format(filename)
+            print('Skipping {0}...'.format(filename))
         else:
-            print 'Creating {0}...'.format(filename)
+            print('Creating {0}...'.format(filename))
 
             shutil.copyfile(template, filename)
 
 def submit_challenge(args):
     for solution in args.files:
-        print 'Submitting {0}...'.format(solution)
+        print('Submitting {0}...'.format(solution))
 
         extension   = os.path.splitext(solution)[1]
         mimetype    = mimetypes.types_map[extension]
-        file_handle = None
         try:
-            file_handle = open(solution)
-        except:
-            print 'Unable to read solution file'
+            with open(solution, 'r') as file_handle:
+                file_handle = None
+
+                challenge_id = re.search(r'\d+', solution).group(0)
+                url          = SUBMIT_URL.format(challenge_id = challenge_id)
+
+                browser = get_browser(url)
+
+                form = browser.form = list(browser.forms())[0]
+                file_control = form.find_control(name = 'submission')
+                file_control.add_file(
+                    file_handle,
+                    filename = solution,
+                    content_type = mimetype
+                )
+
+                browser.submit()
+        except IOError:
+            print('Unable to read solution file')
             exit(1)
 
-        challenge_id = re.search(r'\d+', solution).group(0)
-        url          = SUBMIT_URL.format(challenge_id = challenge_id)
-
-        browser = get_browser(url)
-
-        form = browser.form = list(browser.forms())[0]
-        file_control = form.find_control(name = 'submission')
-        file_control.add_file(
-            file_handle,
-            filename = solution,
-            content_type = mimetype
-        )
-
-        browser.submit()
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description = 'Create solution files for each language for a challenge')
+def main():
+    parser = argparse.ArgumentParser(
+        description = 'Create solution files for each language for a challenge'
+    )
     subparsers = parser.add_subparsers()
 
     create_parser = subparsers.add_parser('create')
-    create_parser.add_argument('challenge_id', type = int,
-                        help = 'Challenge ID')
-    create_parser.add_argument('challenge_name', type = str,
-                        help = 'Challenge name')
+    create_parser.add_argument(
+        'challenge_id',
+        type = int,
+        help = 'Challenge ID',
+    )
+    create_parser.add_argument(
+        'challenge_name',
+        type = str,
+        help = 'Challenge name',
+    )
     create_parser.set_defaults(func = create_challenge)
 
     submit_parser = subparsers.add_parser('submit')
-    submit_parser.add_argument('files', type = str,
-                        nargs = '+',
-                        help = 'Solution file')
+    submit_parser.add_argument(
+        'files',
+        type = str,
+        nargs = '+',
+        help = 'Solution file',
+    )
     submit_parser.set_defaults(func = submit_challenge)
 
     args = parser.parse_args()
     args.func(args)
 
     COOKIE_JAR.save(COOKIE_JAR_FILE)
+
+if __name__ == '__main__':
+    main()
 
