@@ -2,11 +2,13 @@
 
 from __future__ import print_function
 
+import re
 import sys
 
 with open(sys.argv[1], 'r') as fh:
     for line in fh:
-        line = line.strip()
+        sentence, pattern = tuple(line.split(','))
+        pattern = '([{}])'.format(pattern.strip())
 
-        # TODO:
+        print(re.sub(pattern, '', sentence))
 
